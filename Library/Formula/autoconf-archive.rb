@@ -1,13 +1,13 @@
-require 'formula'
+require "formula"
 
 class AutoconfArchive < Formula
-  homepage 'http://savannah.gnu.org/projects/autoconf-archive/'
-  url 'http://ftpmirror.gnu.org/autoconf-archive/autoconf-archive-2013.02.02.tar.bz2'
-  mirror 'http://ftp.gnu.org/gnu/autoconf-archive/autoconf-archive-2013.02.02.tar.bz2'
-  sha1 '73c004801f0059e97b17db45eacd47a5095cc364'
+  homepage "http://savannah.gnu.org/projects/autoconf-archive/"
+  url "http://ftpmirror.gnu.org/autoconf-archive/autoconf-archive-2014.10.15.tar.xz"
+  mirror "http://ftp.gnu.org/gnu/autoconf-archive/autoconf-archive-2014.10.15.tar.xz"
+  sha1 "7efcefd29a67da2a7243ea2b30e353027d70b460"
 
   def install
-    system './configure', "--prefix=#{prefix}"
+    system "./configure", "--prefix=#{prefix}"
     system 'make install'
   end
 end

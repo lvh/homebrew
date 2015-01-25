@@ -1,29 +1,39 @@
-require 'formula'
-
 class Fontforge < Formula
-  homepage 'http://fontforge.sourceforge.net'
-  url 'http://downloads.sourceforge.net/project/fontforge/fontforge-source/fontforge_full-20120731-b.tar.bz2'
-  sha1 'b520f532b48e557c177dffa29120225066cc4e84'
+  homepage "https://fontforge.github.io"
+  url "https://github.com/fontforge/fontforge/archive/20141230.tar.gz"
+  sha1 "62268018d4b0080f8b976943f36ecbeed5aa6c9a"
 
-  head 'https://github.com/fontforge/fontforge.git'
+  bottle do
+    sha1 "96155e138d5c9f0eff459f85a8ee1198fa6ffbae" => :yosemite
+    sha1 "780a877b74381ee256812406c4d68f5523631ee1" => :mavericks
+    sha1 "84b0969c5370be9a949e2c174c9a1e8735a63797" => :mountain_lion
+  end
 
-  env :std
+  deprecated_option "with-x" => "with-x11"
+  deprecated_option "with-gif" => "with-giflib"
 
-  option 'without-python', 'Build without Python'
-  option 'with-gif',       'Build with GIF support'
-  option 'with-x',         'Build with X'
+  option "with-giflib", "Build with GIF support"
 
-  depends_on 'gettext'
-  depends_on :xcode # Because: #include </Developer/Headers/FlatCarbon/Files.h>
-
-  depends_on :libpng    => :recommended
-  depends_on 'jpeg'     => :recommended
-  depends_on 'libtiff'  => :recommended
-  depends_on :x11 if build.with? 'x'
-  depends_on 'giflib' if build.with? 'gif'
-  depends_on 'cairo' => :optional
-  depends_on 'pango' => :optional
-  depends_on 'libspiro' => :optional
+  # Autotools are required to build from source in all releases.
+  # The upstream tarball is now 235MB in size and still requires us to autotool
+  # so seriously consider using the much smaller Github tag if we don't lose anything.
+  depends_on "autoconf" => :build
+  depends_on "automake" => :build
+  depends_on "pkg-config" => :build
+  depends_on "libtool" => :run
+  depends_on "gettext"
+  depends_on "pango"
+  depends_on "zeromq"
+  depends_on "czmq"
+  depends_on "fontconfig"
+  depends_on "cairo"
+  depends_on "libpng" => :recommended
+  depends_on "jpeg" => :recommended
+  depends_on "libtiff" => :recommended
+  depends_on "giflib" => :optional
+  depends_on "libspiro" => :optional
+  depends_on :x11 => :optional
+  depends_on :python if MacOS.version <= :snow_leopard
 
   fails_with :llvm do
     build 2336
@@ -31,98 +41,57 @@ class Fontforge < Formula
   end
 
   def install
-    # Reason: Designed for the 10.7 SDK because it uses FlatCarbon.
-    #         MACOSX_DEPLOYMENT_TARGET fixes ensuing Python 10.7 vs 10.8 clash.
-    # Discussed: https://github.com/mxcl/homebrew/pull/14097
-    # Reported:  Not yet.
-    if MacOS.version >= :mountain_lion
-      ENV.macosxsdk("10.7")
-      ENV.append "CFLAGS", "-isysroot #{MacOS.sdk_path(10.7)}"
-      ENV["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
-    end
+    args = %W[
+      --prefix=#{prefix}
+      --disable-silent-rules
+      --disable-dependency-tracking
+    ]
 
-    args = ["--prefix=#{prefix}",
-            "--enable-double",
-            "--without-freetype-bytecode"]
-
-    if build.without? "python"
-      args << "--without-python"
+    if build.with? "x11"
+      args << "--with-x"
     else
-      python_prefix = `python-config --prefix`.strip
-      python_version = `python-config --libs`.match('-lpython(\d+\.\d+)').captures.at(0)
-      args << "--with-python-headers=#{python_prefix}/include/python#{python_version}"
-      args << "--with-python-lib=-lpython#{python_version}"
-      args << "--enable-pyextension"
+      args << "--without-x"
     end
 
-    # Fix linking to correct Python library
-    ENV.prepend "LDFLAGS", "-L#{python_prefix}/lib" unless build.without? "python"
+    args << "--without-libpng" if build.without? "libpng"
+    args << "--without-libjpeg" if build.without? "jpeg"
+    args << "--without-libtiff" if build.without? "libtiff"
+    args << "--without-giflib" if build.without? "giflib"
+    args << "--without-libspiro" if build.without? "libspiro"
+
     # Fix linker error; see: http://trac.macports.org/ticket/25012
     ENV.append "LDFLAGS", "-lintl"
+
+    # And finding Homebrew's Python
+    ENV.append_path "PKG_CONFIG_PATH", "#{HOMEBREW_PREFIX}/Frameworks/Python.framework/Versions/2.7/lib/pkgconfig/"
+    ENV.prepend "LDFLAGS", "-L#{%x(python-config --prefix).chomp}/lib"
+
     # Reset ARCHFLAGS to match how we build
-    ENV["ARCHFLAGS"] = MacOS.prefer_64_bit? ? "-arch x86_64" : "-arch i386"
+    ENV["ARCHFLAGS"] = "-arch #{MacOS.preferred_arch}"
 
-    args << "--without-cairo" unless build.with? "cairo"
-    args << "--without-pango" unless build.with? "pango"
-
+    # Bootstrap in every build: https://github.com/fontforge/fontforge/issues/1806
+    system "./bootstrap"
     system "./configure", *args
-
-    # Fix hard-coded install locations that don't respect the target bindir
-    inreplace "Makefile" do |s|
-      s.gsub! "/Applications", "$(prefix)"
-      s.gsub! "ln -s /usr/local/bin/fontforge", "ln -s $(bindir)/fontforge"
-    end
-
-    # Fix install location of Python extension; see:
-    # http://sourceforge.net/mailarchive/message.php?msg_id=26827938
-    inreplace "Makefile" do |s|
-      s.gsub! "python setup.py install --prefix=$(prefix) --root=$(DESTDIR)", "python setup.py install --prefix=$(prefix)"
-    end
-
-    # Fix hard-coded include file paths. Reported usptream:
-    # http://sourceforge.net/mailarchive/forum.php?thread_name=C1A32103-A62D-468B-AD8A-A8E0E7126AA5%40smparkes.net&forum_name=fontforge-devel
-    # https://trac.macports.org/ticket/33284
-    if MacOS::Xcode.version >= '4.4'
-      header_prefix = "#{MacOS.sdk_path(10.7)}/Developer"
-    else
-      header_prefix = MacOS::Xcode.prefix
-    end
-    inreplace %w(fontforge/macbinary.c fontforge/startui.c gutils/giomime.c) do |s|
-      s.gsub! "/Developer", header_prefix
-    end
-
     system "make"
-    system "make install"
+    system "make", "install"
   end
 
-  def which_python
-    "python" + `python -c 'import sys;print(sys.version[:3])'`.strip
+  def post_install
+    # Link this to enable symlinking into /Applications with brew linkapps.
+    # The name is case-sensitive. It breaks without both F's capitalised.
+    # If you build with x11 now, it automatically creates an dynamic link from bin/fontforge
+    # to @executable_path/../Frameworks/Breakpad.framework/Versions/A/Breakpad which
+    # obviously doesn't exist given fontforge and FontForge.app are in different places.
+    # If this isn't fixed within a couple releases, consider dumping everything in libexec.
+    # https://github.com/fontforge/fontforge/issues/2022
+    if build.with? "x11"
+      ln_s "#{share}/fontforge/osx/FontForge.app", prefix
+      system "install_name_tool", "-change", "@executable_path/../Frameworks/Breakpad.framework/Versions/A/Breakpad",
+             "#{bin}/fontforge", "#{share}/fontforge/osx/FontForge.app/Contents/Frameworks/Breakpad.framework/Versions/A/Breakpad"
+    end
   end
 
-  def test
+  test do
     system "#{bin}/fontforge", "-version"
-  end
-
-  def caveats
-    x_caveats = <<-EOS.undent
-      fontforge is an X11 application.
-
-      To install the Mac OS X wrapper application run:
-        brew linkapps
-      or:
-        ln -s #{opt_prefix}/FontForge.app /Applications
-    EOS
-
-    python_caveats = <<-EOS.undent
-
-      To use the Python extension with non-homebrew Python, you need to amend your
-      PYTHONPATH like so:
-        export PYTHONPATH=#{HOMEBREW_PREFIX}/lib/#{which_python}/site-packages:$PYTHONPATH
-    EOS
-
-    s = ""
-    s += x_caveats if build.with? "x"
-    s += python_caveats unless build.without? "python"
-    return s
   end
 end

@@ -1,57 +1,59 @@
-require 'formula'
+require "formula"
 
 class Emacs23Installed < Requirement
   fatal true
   env :userpaths
+  default_formula "emacs"
 
   satisfy do
     `emacs --version 2>/dev/null` =~ /^GNU Emacs (\d{2})/
     $1.to_i >= 23
   end
-
-  def message; <<-EOS.undent
-    Emacs 23 or greater is required to build this software.
-
-    You can install this with Homebrew:
-      brew install emacs
-
-    Or you can use any other Emacs distribution
-    that provides version 23 or greater.
-    EOS
-  end
 end
 
 class Mu < Formula
-  homepage 'http://www.djcbsoftware.nl/code/mu/'
-  url 'http://mu0.googlecode.com/files/mu-0.9.9.tar.gz'
-  sha1 'eafd678faf852230f55ae262ae005d006a9a839b'
+  homepage "http://www.djcbsoftware.nl/code/mu/"
+  url "https://github.com/djcb/mu/archive/v0.9.11.tar.gz"
+  sha1 "080b69bfb4876cb683acb961e8b71d6ebba90fa0"
 
-  head 'https://github.com/djcb/mu.git'
+  head "https://github.com/djcb/mu.git"
 
-  option 'with-emacs', 'Build with emacs support'
-
-  depends_on 'pkg-config' => :build
-  depends_on 'gettext'
-  depends_on 'glib'
-  depends_on 'gmime'
-  depends_on 'xapian'
-  depends_on Emacs23Installed if build.include? 'with-emacs'
-
-  if build.head?
-    depends_on 'automake' => :build
-    depends_on 'libtool' => :build
+  bottle do
+    sha1 "b9e3a478300b3391f6a38639e32694f5444bea2d" => :yosemite
+    sha1 "61b8eadfbfa482de3d1194c5cb8bc5a3cb0933d6" => :mavericks
+    sha1 "ef81baa0a3210ba9c4a7eeb9224574e1cc89e5d8" => :mountain_lion
   end
+
+  option "with-emacs", "Build with emacs support"
+
+  depends_on "autoconf" => :build
+  depends_on "automake" => :build
+  depends_on "libtool" => :build
+  depends_on "pkg-config" => :build
+  depends_on "gettext"
+  depends_on "glib"
+  depends_on "gmime"
+  depends_on "xapian"
+  depends_on Emacs23Installed if build.with? "emacs"
+
+  env :std if build.with? "emacs"
 
   def install
     # Explicitly tell the build not to include emacs support as the version
     # shipped by default with Mac OS X is too old.
-    ENV['EMACS'] = 'no' unless build.include? 'with-emacs'
+    ENV["EMACS"] = "no" if build.without? "emacs"
 
-    system 'autoreconf', '-ivf' if build.head?
+    # I dunno.
+    # https://github.com/djcb/mu/issues/332
+    # https://github.com/Homebrew/homebrew/issues/25524
+    ENV.delete "MACOSX_DEPLOYMENT_TARGET"
+
+    system "autoreconf", "-ivf"
     system "./configure", "--disable-dependency-tracking",
                           "--prefix=#{prefix}",
                           "--with-gui=none"
     system "make"
+    system "make test"
     system "make install"
   end
 

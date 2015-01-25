@@ -14,7 +14,7 @@ class Jshon < Formula
     man1.install 'jshon.1'
   end
 
-  def test
-    system "echo '[true,false,null]'| #{bin}/jshon -l"
+  test do
+    assert_equal "3", pipe_output("#{bin}/jshon -l", "[true,false,null]").strip
   end
 end

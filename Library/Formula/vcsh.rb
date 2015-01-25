@@ -2,17 +2,19 @@ require 'formula'
 
 class Vcsh < Formula
   homepage 'https://github.com/RichiH/vcsh'
-  url 'https://github.com/RichiH/vcsh/archive/v1.0-1.tar.gz'
-  version '1.0-1'
-  sha1 '23a72bc495fce299ee52ac98470f808a0a9a002f'
+  url 'https://github.com/RichiH/vcsh/archive/v1.20141026-manpage-static.tar.gz'
+  version '1.20141026'
+  sha1 '9e4fac6d354fca4bda32cab8fa7f0fffe4ddd110'
 
   depends_on 'mr'
 
   def install
     bin.install 'vcsh'
+    man1.install 'vcsh.1'
+    zsh_completion.install '_vcsh'
   end
 
-  def test
-    system "vcsh"
+  test do
+    system "#{bin}/vcsh"
   end
 end

@@ -1,19 +1,22 @@
-require 'formula'
-
 class HtopOsx < Formula
-  homepage 'https://github.com/max-horvath/htop-osx'
-  url 'https://github.com/max-horvath/htop-osx/tarball/0.8.2.1-2012-04-18'
-  sha1 '90975472c683e59a6476e215ae5cb768d86659a8'
+  homepage "https://github.com/max-horvath/htop-osx"
+  url "https://github.com/max-horvath/htop-osx/archive/0.8.2.3.tar.gz"
+  sha1 "43d63772dd610fb238e3b9a83c066658bd6218d9"
 
-  depends_on :autoconf
-  depends_on :automake
-  depends_on :libtool
+  bottle do
+    sha1 "9de4bee7456fe78f5569bac225cd9d23af1b72eb" => :yosemite
+    sha1 "30d4a704b72f2b05b95375c7308f67ea8b5ce272" => :mavericks
+    sha1 "a795b939866e1d130bf93762e4b8d755249c634e" => :mountain_lion
+  end
+
+  depends_on "autoconf" => :build
+  depends_on "automake" => :build
+  depends_on "libtool" => :build
 
   def install
     # Otherwise htop will segfault when resizing the terminal
     ENV.no_optimization if ENV.compiler == :clang
 
-    (buildpath/'m4').mkpath # or autogen fails
     system "./autogen.sh"
     system "./configure", "--disable-dependency-tracking", "--prefix=#{prefix}"
     system "make", "install", "DEFAULT_INCLUDES='-iquote .'"
@@ -28,5 +31,11 @@ class HtopOsx < Formula
 
     You should be certain that you trust any software you grant root privileges.
     EOS
+  end
+
+  test do
+    ENV["TERM"] = "xterm"
+    pipe_output("#{bin}/htop", "q")
+    assert $?.success?
   end
 end

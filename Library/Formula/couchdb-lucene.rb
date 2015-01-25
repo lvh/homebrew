@@ -1,20 +1,39 @@
-require 'formula'
-
 class CouchdbLucene < Formula
   homepage 'https://github.com/rnewson/couchdb-lucene'
-  url 'https://github.com/rnewson/couchdb-lucene/tarball/v0.9.0'
-  sha1 'f5c29f5d76c70ef25ed240b0a04658ec6120a0fd'
+  url 'https://github.com/rnewson/couchdb-lucene/archive/v1.0.2.tar.gz'
+  sha1 '75e0c55a87f47903c6cd122286ea3e4568809f7e'
 
   depends_on 'couchdb'
-  depends_on 'maven'
+  depends_on 'maven' => :build
 
   def install
+    ENV["JAVA_HOME"] = `/usr/libexec/java_home`.chomp
     system "mvn"
+    system "tar", "-xzf", "target/couchdb-lucene-#{version}-dist.tar.gz", "--strip", "1"
 
-    system "tar", "-xzf", "target/couchdb-lucene-#{version}-dist.tar.gz"
-    prefix.install Dir["couchdb-lucene-#{version}/*"]
+    prefix.install_metafiles
+    rm_rf Dir["bin/*.bat"]
+    libexec.install Dir["*"]
 
-    (etc + "couchdb/local.d/couchdb-lucene.ini").write ini_file
+    Dir.glob("#{libexec}/bin/*") do |path|
+      bin_name = File.basename(path)
+      cmd = "cl_#{bin_name}"
+      (bin/cmd).write shim_script(bin_name)
+      (libexec/"clbin").install_symlink bin/cmd => bin_name
+    end
+
+    ini_path.write(ini_file) unless ini_path.exist?
+  end
+
+  def shim_script(target); <<-EOS.undent
+    #!/bin/bash
+    export CL_BASEDIR=#{libexec}/bin
+    exec "$CL_BASEDIR/#{target}" "$@"
+    EOS
+  end
+
+  def ini_path
+    etc/"couchdb/local.d/couchdb-lucene.ini"
   end
 
   def ini_file; <<-EOS.undent
@@ -23,7 +42,7 @@ class CouchdbLucene < Formula
     EOS
   end
 
-  plist_options :manual => "#{HOMEBREW_PREFIX}/opt/couchdb-lucene/bin/run"
+  plist_options :manual => "#{HOMEBREW_PREFIX}/opt/couchdb-lucene/bin/cl_run"
 
   def plist; <<-EOS.undent
     <?xml version="1.0" encoding="UTF-8"?>
@@ -37,15 +56,11 @@ class CouchdbLucene < Formula
         <dict>
           <key>HOME</key>
           <string>~</string>
-          <key>DYLD_LIBRARY_PATH</key>
-          <string>/opt/local/lib:$DYLD_LIBRARY_PATH</string>
         </dict>
         <key>ProgramArguments</key>
         <array>
-          <string>#{opt_prefix}/bin/run</string>
+          <string>#{opt_bin}/cl_run</string>
         </array>
-        <key>UserName</key>
-        <string>#{`whoami`.chomp}</string>
         <key>StandardOutPath</key>
         <string>/dev/null</string>
         <key>StandardErrorPath</key>
@@ -57,5 +72,23 @@ class CouchdbLucene < Formula
       </dict>
     </plist>
     EOS
+  end
+
+  def caveats; <<-EOS.undent
+    All commands have been installed with the prefix 'cl_'.
+
+    If you really need to use these commands with their normal names, you
+    can add a "clbin" directory to your PATH from your bashrc like:
+
+        PATH="#{opt_libexec}/clbin:$PATH"
+    EOS
+  end
+
+  test do
+    io = IO.popen("#{bin}/cl_run")
+    sleep 2
+    Process.kill("SIGINT", io.pid)
+    Process.wait(io.pid)
+    io.read !~ /Exception/
   end
 end

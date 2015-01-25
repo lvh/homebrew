@@ -18,7 +18,8 @@ class Enscript < Formula
     system "make install"
   end
 
-  def test
-    system "#{bin}/enscript -V | grep 'GNU Enscript #{version}'"
+  test do
+    assert_match /GNU Enscript #{Regexp.escape(version)}/,
+                 shell_output("#{bin}/enscript -V")
   end
 end

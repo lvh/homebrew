@@ -1,35 +1,59 @@
-require 'formula'
-
 class Samba < Formula
-  homepage 'http://samba.org/'
-  url 'http://www.samba.org/samba/ftp/stable/samba-3.6.8.tar.gz'
-  sha1 'a3cd91fa8835c7c47e4cb3ab419f92b4895052b5'
+  homepage "https://samba.org/"
+  url "https://download.samba.org/pub/samba/stable/samba-3.6.24.tar.gz"
+  sha1 "6d48b55ab1e172b0c75035040f5aea65fbf0561e"
 
-  # Needed for autogen.sh
-  depends_on :automake
-  depends_on :libtool
+  bottle do
+    sha1 "839c682640aa3fce69b7b2ba02a017130143bbca" => :yosemite
+    sha1 "aeb31b142a8ac1504b0a9657e9aad6098516fc27" => :mavericks
+    sha1 "6d0320a3b8d0ef29bf4909cfb9eee234be4f5353" => :mountain_lion
+  end
+
+  conflicts_with "talloc", :because => "both install `include/talloc.h`"
+
+  skip_clean "private"
+  skip_clean "var/locks"
 
   # Fixes the Grouplimit of 16 users os OS X.
   # Bug has been raised upstream:
   # https://bugzilla.samba.org/show_bug.cgi?id=8773
-  def patches
-    DATA
-  end
+  patch :DATA
 
   def install
-    # Enable deprecated CUPS structs on Mountain Lion
-    # https://github.com/mxcl/homebrew/issues/13790
-    ENV['CFLAGS'] += " -D_IPP_PRIVATE_STRUCTURES"
-    cd 'source3' do
-      system "./autogen.sh"
+    cd "source3" do
       system "./configure", "--disable-debug",
-                            "--disable-dependency-tracking",
                             "--prefix=#{prefix}",
-                            "--with-configdir=#{prefix}/etc"
-      system "make install"
-      (prefix/'etc').mkpath
-      touch prefix/'etc/smb.conf'
+                            "--with-configdir=#{prefix}/etc",
+                            "--without-ldap",
+                            "--without-krb5"
+      system "make", "install"
+      (prefix/"etc").mkpath
+      touch prefix/"etc/smb.conf"
+      (prefix/"private").mkpath
+      (var/"locks").mkpath
     end
+  end
+
+  plist_options :manual => "smbd"
+
+  def plist; <<-EOS.undent
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+      <dict>
+        <key>Label</key>
+        <string>#{plist_name}</string>
+        <key>ProgramArguments</key>
+        <array>
+          <string>#{sbin}/smbd</string>
+          <string>-s</string>
+          <string>#{etc}/smb.conf</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+      </dict>
+    </plist>
+    EOS
   end
 end
 

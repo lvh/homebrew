@@ -1,27 +1,30 @@
-require 'formula'
-
 class GitCola < Formula
-  homepage 'http://git-cola.github.com/'
-  url 'https://github.com/git-cola/git-cola/tarball/v1.8.1'
-  sha1 '125055ac18f30aa25bf9f0874b888659233ab22e'
+  homepage "http://git-cola.github.io/"
+  url "https://github.com/git-cola/git-cola/archive/v2.0.8.tar.gz"
+  sha1 "38db3432ca90047448c8f3b6f20ef0ad37c15fa1"
 
-  head 'https://github.com/git-cola/git-cola.git'
+  head "https://github.com/git-cola/git-cola.git"
 
-  option 'with-docs', "Build man pages using asciidoc and xmlto"
+  bottle do
+    sha1 "bc3a197d229a4dbcefb593ee8ee0453d87eb7e8f" => :yosemite
+    sha1 "13d367b370dd4d0593e78608394eb381987b9847" => :mavericks
+    sha1 "4f1c8150aeb4273789527251e7c042152ed243d5" => :mountain_lion
+  end
 
-  depends_on 'pyqt'
+  option "with-docs", "Build man pages using asciidoc and xmlto"
 
-  if build.include? 'with-docs'
+  depends_on "pyqt"
+
+  if build.with? "docs"
     # these are needed to build man pages
-    depends_on 'asciidoc'
-    depends_on 'xmlto'
+    depends_on "asciidoc"
+    depends_on "xmlto"
   end
 
   def install
-    ENV.prepend 'PYTHONPATH', "#{HOMEBREW_PREFIX}/lib/#{which_python}/site-packages", ':'
     system "make", "prefix=#{prefix}", "install"
 
-    if build.include? 'with-docs'
+    if build.with? "docs"
       system "make", "-C", "share/doc/git-cola",
                      "-f", "Makefile.asciidoc",
                      "prefix=#{prefix}",
@@ -29,7 +32,7 @@ class GitCola < Formula
     end
   end
 
-  def which_python
-    "python" + `python -c 'import sys;print(sys.version[:3])'`.strip
+  test do
+    system "#{bin}/git-cola", "--version"
   end
 end

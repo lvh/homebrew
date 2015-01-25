@@ -2,11 +2,25 @@ require 'formula'
 
 class GstPluginsUgly < Formula
   homepage 'http://gstreamer.freedesktop.org/'
-  url 'http://gstreamer.freedesktop.org/src/gst-plugins-ugly/gst-plugins-ugly-1.0.5.tar.xz'
-  sha256 'a62a182ea96d9b2783b493b46d531914db9d2ebb9e537e9c84668fe752791331'
+  url 'http://gstreamer.freedesktop.org/src/gst-plugins-ugly/gst-plugins-ugly-1.4.5.tar.xz'
+  mirror 'http://ftp.osuosl.org/pub/blfs/svn/g/gst-plugins-ugly-1.4.5.tar.xz'
+  sha256 "5cd5e81cf618944f4dc935f1669b2125e8bb2fe9cc7dc8dc15b72237aca49067"
+
+  bottle do
+    sha1 "4b95eec86a459f5ba50facc1f72ef1a6a899a98f" => :yosemite
+    sha1 "22f01d2f3ff5108d617a672914d8ea8a84198094" => :mavericks
+    sha1 "124a9a2a597349f0ff584725ac0ddccb379d770f" => :mountain_lion
+  end
+
+  head do
+    url 'git://anongit.freedesktop.org/gstreamer/gst-plugins-ugly'
+
+    depends_on "autoconf" => :build
+    depends_on "automake" => :build
+    depends_on "libtool" => :build
+  end
 
   depends_on 'pkg-config' => :build
-  depends_on 'xz' => :build
   depends_on 'gettext'
   depends_on 'gst-plugins-base'
 
@@ -36,19 +50,31 @@ class GstPluginsUgly < Formula
   # Does not work with libcdio 0.9
 
   def install
-    ENV.append "CFLAGS", "-no-cpp-precomp -funroll-loops -fstrict-aliasing"
+    args = %W[
+      --prefix=#{prefix}
+      --mandir=#{man}
+      --disable-debug
+      --disable-dependency-tracking
+    ]
 
-    # Fixes build error, missing includes.
-    # https://github.com/mxcl/homebrew/issues/14078
-    nbcflags = `pkg-config --cflags opencore-amrnb`.chomp
-    wbcflags = `pkg-config --cflags opencore-amrwb`.chomp
-    ENV['AMRNB_CFLAGS'] = nbcflags + "-I#{HOMEBREW_PREFIX}/include/opencore-amrnb"
-    ENV['AMRWB_CFLAGS'] = wbcflags + "-I#{HOMEBREW_PREFIX}/include/opencore-amrwb"
+    if build.head?
+      ENV["NOCONFIGURE"] = "yes"
+      system "./autogen.sh"
+    end
 
-    system "./configure", "--disable-debug", "--disable-dependency-tracking",
-                          "--prefix=#{prefix}",
-                          "--mandir=#{man}"
+    if build.with? "opencore-amr"
+      # Fixes build error, missing includes.
+      # https://github.com/Homebrew/homebrew/issues/14078
+      nbcflags = `pkg-config --cflags opencore-amrnb`.chomp
+      wbcflags = `pkg-config --cflags opencore-amrwb`.chomp
+      ENV['AMRNB_CFLAGS'] = nbcflags + "-I#{HOMEBREW_PREFIX}/include/opencore-amrnb"
+      ENV['AMRWB_CFLAGS'] = wbcflags + "-I#{HOMEBREW_PREFIX}/include/opencore-amrwb"
+    else
+      args << "--disable-amrnb" << "--disable-amrwb"
+    end
+
+    system "./configure", *args
     system "make"
-    system "make install"
+    system "make", "install"
   end
 end

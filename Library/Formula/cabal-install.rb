@@ -1,17 +1,28 @@
-require 'formula'
+require "formula"
 
 class CabalInstall < Formula
-  homepage 'http://www.haskell.org/haskellwiki/Cabal-Install'
-  url 'http://www.haskell.org/cabal/release/cabal-install-0.14.0/cabal-install-0.14.0.tar.gz'
-  sha1 '614a683ec15a8d9b77e8d926c6906e8d00e3d401'
+  homepage "http://www.haskell.org/haskellwiki/Cabal-Install"
+  url "https://www.haskell.org/cabal/release/cabal-install-1.22.0.0/cabal-install-1.22.0.0.tar.gz"
+  sha1 "a4b31edecc80e244231ebc4dc04c109776505ce2"
 
-  depends_on 'ghc'
+  bottle do
+    cellar :any
+    sha1 "29b12fb72f49990c68e8a6507ac22f6ea71e69ec" => :yosemite
+    sha1 "8ff0f8981b11799f9c91e81a7a5cde23993bdc79" => :mavericks
+    sha1 "905f9d75714667e86197571eabf1b434fbba567d" => :mountain_lion
+  end
+
+  depends_on "ghc"
+
+  fails_with :clang if MacOS.version < :mavericks # Same as ghc.rb
 
   def install
-    ENV['PREFIX'] = "#{prefix}"
-    ENV['VERBOSE'] = ''
-    system "sh bootstrap.sh"
+    system "sh", "bootstrap.sh", "--sandbox"
+    bin.install ".cabal-sandbox/bin/cabal"
+    bash_completion.install "bash-completion/cabal"
+  end
 
-    (prefix+'etc/bash_completion.d').install 'bash-completion/cabal'
+  test do
+    system "#{bin}/cabal", "--config-file=#{testpath}/config", "info", "cabal"
   end
 end

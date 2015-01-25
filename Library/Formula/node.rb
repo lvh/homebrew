@@ -1,125 +1,148 @@
-require 'formula'
-
-class PythonVersion < Requirement
-  env :userpaths
-
-  satisfy { `python -c 'import sys;print(sys.version[:3])'`.strip.to_f >= 2.6 }
-
-  def message;
-    "Node's build system, gyp, requires Python 2.6 or newer."
-  end
-end
-
-class NpmNotInstalled < Requirement
-  fatal true
-
-  def modules_folder
-    "#{HOMEBREW_PREFIX}/lib/node_modules"
-  end
-
-  def message; <<-EOS.undent
-    The homebrew node recipe now (beginning with 0.8.0) comes with npm.
-    It appears you already have npm installed at #{modules_folder}/npm.
-    To use the npm that comes with this recipe,
-      first uninstall npm with `npm uninstall npm -g`.
-      Then run this command again.
-
-    If you would like to keep your installation of npm instead of
-      using the one provided with homebrew,
-      install the formula with the --without-npm option added.
-    EOS
-  end
-
-  satisfy :build_env => false do
-    begin
-      path = Pathname.new("#{modules_folder}/npm")
-      path.realpath.to_s.include?(HOMEBREW_CELLAR)
-    rescue Exception => e
-      true
-    end
-  end
-end
-
+# Note that x.even are stable releases, x.odd are devel releases
 class Node < Formula
-  homepage 'http://nodejs.org/'
-  url 'http://nodejs.org/dist/v0.8.20/node-v0.8.20.tar.gz'
-  sha1 'b780f58f0e3bc43d2380d4a935f2b45350783b37'
+  homepage "https://nodejs.org/"
+  url "https://nodejs.org/dist/v0.10.35/node-v0.10.35.tar.gz"
+  sha256 "0043656bb1724cb09dbdc960a2fd6ee37d3badb2f9c75562b2d11235daa40a03"
+  revision 2
 
-  devel do
-    url 'http://nodejs.org/dist/v0.9.9/node-v0.9.9.tar.gz'
-    sha1 'af1deb80c79f256b319a727f8593740ff99cdbc8'
+  bottle do
+    revision 1
+    sha1 "a98a1df66cfb0712b14489186c46f7087ba35bd7" => :yosemite
+    sha1 "0cd45412840a67d5d65e6bc3c0c3bcf8bc23153c" => :mavericks
+    sha1 "977332381c033626b991002c27e738c144ebbaac" => :mountain_lion
   end
 
-  head 'https://github.com/joyent/node.git'
+  head do
+    url "https://github.com/joyent/node.git", :branch => "v0.12"
 
-  # Leopard OpenSSL is not new enough, so use our keg-only one
-  depends_on 'openssl' if MacOS.version == :leopard
-  depends_on NpmNotInstalled unless build.include? 'without-npm'
-  depends_on PythonVersion
+    depends_on "pkg-config" => :build
+    depends_on "icu4c"
+  end
 
-  option 'enable-debug', 'Build with debugger hooks'
-  option 'without-npm', 'npm will not be installed'
+  deprecated_option "enable-debug" => "with-debug"
+
+  option "with-debug", "Build with debugger hooks"
+  option "without-npm", "npm will not be installed"
+  option "without-completion", "npm bash completion will not be installed"
+
+  depends_on :python => :build
+
+  # Once we kill off SSLv3 in our OpenSSL consider forcing our OpenSSL
+  # over Node's shipped version with --shared-openssl.
+  # Would allow us quicker security fixes than Node's release schedule.
+  # See https://github.com/joyent/node/issues/3557 for prior discussion.
 
   fails_with :llvm do
     build 2326
   end
 
-  def install
-    # Lie to `xcode-select` for now to work around a GYP bug that affects
-    # CLT-only systems:
-    #
-    #   http://code.google.com/p/gyp/issues/detail?id=292
-    #   joyent/node#3681
-    ENV['DEVELOPER_DIR'] = MacOS.dev_tools_path unless MacOS::Xcode.installed?
+  resource "npm" do
+    url "https://registry.npmjs.org/npm/-/npm-2.1.18.tgz"
+    sha1 "e2af4c5f848fb023851cd2ec129005d33090bd57"
+  end
 
-    args = %W{--prefix=#{prefix}}
-    args << "--debug" if build.include? 'enable-debug'
-    args << "--without-npm" if build.include? 'without-npm'
+  def install
+    args = %W{--prefix=#{prefix} --without-npm}
+    args << "--debug" if build.with? "debug"
+    args << "--without-ssl2" << "--without-ssl3" if build.stable?
+
+    # This should eventually be able to use the system icu4c, but right now
+    # it expects to find this dependency using pkgconfig.
+    if build.head?
+      ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["icu4c"].opt_prefix}/lib/pkgconfig"
+      args << "--with-intl=system-icu"
+    end
 
     system "./configure", *args
-    system "make install"
+    system "make", "install"
 
-    unless build.include? 'without-npm'
-      (lib/"node_modules/npm/npmrc").write(npmrc)
+    if build.with? "npm"
+      resource("npm").stage buildpath/"npm_install"
+
+      # make sure npm can find node
+      ENV.prepend_path "PATH", bin
+
+      # set log level temporarily for npm's `make install`
+      ENV["NPM_CONFIG_LOGLEVEL"] = "verbose"
+
+      cd buildpath/"npm_install" do
+        system "./configure", "--prefix=#{libexec}/npm"
+        system "make", "install"
+      end
+
+      if build.with? "completion"
+        bash_completion.install \
+          buildpath/"npm_install/lib/utils/completion.sh" => "npm"
+      end
     end
   end
 
-  def npm_prefix
-    "#{HOMEBREW_PREFIX}/share/npm"
-  end
+  def post_install
+    return if build.without? "npm"
 
-  def npm_bin
-    "#{npm_prefix}/bin"
-  end
+    node_modules = HOMEBREW_PREFIX/"lib/node_modules"
+    node_modules.mkpath
+    npm_exec = node_modules/"npm/bin/npm-cli.js"
+    # Kill npm but preserve all other modules across node updates/upgrades.
+    rm_rf node_modules/"npm"
 
-  def modules_folder
-    "#{HOMEBREW_PREFIX}/lib/node_modules"
-  end
+    cp_r libexec/"npm/lib/node_modules/npm", node_modules
+    # This symlink doesn't hop into homebrew_prefix/bin automatically so
+    # remove it and make our own. This is a small consequence of our bottle
+    # npm make install workaround. All other installs **do** symlink to
+    # homebrew_prefix/bin correctly. We ln rather than cp this because doing
+    # so mimics npm's normal install.
+    ln_sf npm_exec, "#{HOMEBREW_PREFIX}/bin/npm"
 
-  def npmrc
-    <<-EOS.undent
-      prefix = #{npm_prefix}
-    EOS
+    # Let's do the manpage dance. It's just a jump to the left.
+    # And then a step to the right, with your hand on rm_f.
+    ["man1", "man3", "man5", "man7"].each do |man|
+      # Dirs must exist first: https://github.com/Homebrew/homebrew/issues/35969
+      mkdir_p HOMEBREW_PREFIX/"share/man/#{man}"
+      rm_f Dir[HOMEBREW_PREFIX/"share/man/#{man}/{npm.,npm-,npmrc.}*"]
+      ln_sf Dir[libexec/"npm/share/man/#{man}/npm*"], HOMEBREW_PREFIX/"share/man/#{man}"
+    end
+
+    npm_root = node_modules/"npm"
+    npmrc = npm_root/"npmrc"
+    npmrc.atomic_write("prefix = #{HOMEBREW_PREFIX}\n")
   end
 
   def caveats
-    if build.include? 'without-npm'
-      <<-EOS.undent
-        Homebrew has NOT installed npm. We recommend the following method of
-        installation:
-          curl https://npmjs.org/install.sh | sh
+    s = ""
 
-        After installing, add the following path to your NODE_PATH environment
-        variable to have npm libraries picked up:
-          #{modules_folder}
+    if build.with? "npm"
+      s += <<-EOS.undent
+        If you update npm itself, do NOT use the npm update command.
+        The upstream-recommended way to update npm is:
+          npm install -g npm@latest
       EOS
-    elsif not ENV['PATH'].split(':').include? npm_bin
-      <<-EOS.undent
-        Homebrew installed npm.
-        We recommend prepending the following path to your PATH environment
-        variable to have npm-installed binaries picked up:
-          #{npm_bin}
+    else
+      s += <<-EOS.undent
+        Homebrew has NOT installed npm. If you later install it, you should supplement
+        your NODE_PATH with the npm module folder:
+          #{HOMEBREW_PREFIX}/lib/node_modules
       EOS
+    end
+
+    s
+  end
+
+  test do
+    path = testpath/"test.js"
+    path.write "console.log('hello');"
+
+    output = `#{bin}/node #{path}`.strip
+    assert_equal "hello", output
+    assert_equal 0, $?.exitstatus
+
+    if build.with? "npm"
+      # make sure npm can find node
+      ENV.prepend_path "PATH", opt_bin
+      assert_equal which("node"), opt_bin/"node"
+      assert (HOMEBREW_PREFIX/"bin/npm").exist?, "npm must exist"
+      assert (HOMEBREW_PREFIX/"bin/npm").executable?, "npm must be executable"
+      system "#{HOMEBREW_PREFIX}/bin/npm", "--verbose", "install", "npm@latest"
     end
   end
 end

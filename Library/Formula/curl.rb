@@ -1,37 +1,99 @@
-require 'formula'
-
 class Curl < Formula
-  homepage 'http://curl.haxx.se/'
-  url 'http://curl.haxx.se/download/curl-7.29.0.tar.gz'
-  sha256 '67dc5b952ac489191b62dbe95b18d336b821649f61404a280186c72e8cd0b9d6'
+  homepage "http://curl.haxx.se/"
+  url "http://curl.haxx.se/download/curl-7.40.0.tar.bz2"
+  mirror "http://ftp.sunet.se/pub/www/utilities/curl/curl-7.40.0.tar.bz2"
+  sha256 "899109eb3900fa6b8a2f995df7f449964292776a04763e94fae640700f883fba"
 
-  keg_only :provided_by_osx,
-            "The libcurl provided by Leopard is too old for CouchDB to use."
+  bottle do
+    cellar :any
+    sha1 "a5ba00d51a113752e962ba8ee0911c1c496d6cbc" => :yosemite
+    sha1 "c36652236b7b624913370adf309c9e838c571018" => :mavericks
+    sha1 "624a82135884081cef194e5313e0652a16b240b0" => :mountain_lion
+  end
 
-  option 'with-ssh', 'Build with scp and sftp support'
-  option 'with-libmetalink', 'Build with Metalink support'
-  option 'with-ares', 'Build with C-Ares async DNS support'
-  option 'with-ssl', 'Build with Homebrew OpenSSL instead of the system version'
+  keg_only :provided_by_osx
 
-  depends_on 'pkg-config' => :build
-  depends_on 'libssh2' if build.include? 'with-ssh'
-  depends_on 'libmetalink' if build.include? 'with-libmetalink'
-  depends_on 'c-ares' if build.include? 'with-ares'
-  depends_on 'openssl' if build.include? 'with-ssl'
+  option "with-libidn", "Build with support for Internationalized Domain Names"
+  option "with-rtmpdump", "Build with RTMP support"
+  option "with-libssh2", "Build with scp and sftp support"
+  option "with-c-ares", "Build with C-Ares async DNS support"
+  option "with-gssapi", "Build with GSSAPI/Kerberos authentication support."
+  option "with-libmetalink", "Build with libmetalink support."
+  option "with-libressl", "Build with LibreSSL instead of Secure Transport or OpenSSL"
+
+  deprecated_option "with-idn" => "with-libidn"
+  deprecated_option "with-rtmp" => "with-rtmpdump"
+  deprecated_option "with-ssh" => "with-libssh2"
+  deprecated_option "with-ares" => "with-c-ares"
+
+  if MacOS.version >= :mountain_lion
+    option "with-openssl", "Build with OpenSSL instead of Secure Transport"
+    depends_on "openssl" => :optional
+  else
+    depends_on "openssl"
+  end
+
+  depends_on "pkg-config" => :build
+  depends_on "libidn" => :optional
+  depends_on "rtmpdump" => :optional
+  depends_on "libssh2" => :optional
+  depends_on "c-ares" => :optional
+  depends_on "libmetalink" => :optional
+  depends_on "libressl" => :optional
 
   def install
+    # Throw an error if someone actually tries to rock both SSL choices.
+    # Long-term, make this singular-ssl-option-only a requirement.
+    if build.with?("libressl") && build.with?("openssl")
+      ohai <<-EOS.undent
+      --with-openssl and --with-libressl are both specified and
+      curl can only use one at a time; proceeding with openssl.
+      EOS
+    end
+
     args = %W[
       --disable-debug
       --disable-dependency-tracking
+      --disable-silent-rules
       --prefix=#{prefix}
     ]
 
-    args << "--with-libssh2" if build.include? 'with-ssh'
-    args << "--with-libmetalink" if build.include? 'with-libmetalink'
-    args << "--enable-ares=#{Formula.factory("c-ares").opt_prefix}" if build.include? 'with-ares'
-    args << "--with-ssl=#{Formula.factory("openssl").opt_prefix}" if build.include? 'with-ssl'
+    # cURL has a new firm desire to find ssl with PKG_CONFIG_PATH instead of using
+    # "--with-ssl" any more. "when possible, set the PKG_CONFIG_PATH environment
+    # variable instead of using this option". Multi-SSL choice breaks w/o using it.
+    if MacOS.version < :mountain_lion || build.with?("openssl")
+      ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["openssl"].opt_prefix}/lib/pkgconfig"
+      args << "--with-ssl=#{Formula["openssl"].opt_prefix}"
+      args << "--with-ca-bundle=#{etc}/openssl/cert.pem"
+    elsif build.with? "libressl"
+      ENV.prepend_path "PKG_CONFIG_PATH", "#{Formula["libressl"].opt_prefix}/lib/pkgconfig"
+      args << "--with-ssl=#{Formula["libressl"].opt_prefix}"
+      args << "--with-ca-bundle=#{etc}/libressl/cert.pem"
+    else
+      args << "--with-darwinssl"
+    end
+
+    args << (build.with?("libssh2") ? "--with-libssh2" : "--without-libssh2")
+    args << (build.with?("libidn") ? "--with-libidn" : "--without-libidn")
+    args << (build.with?("libmetalink") ? "--with-libmetalink" : "--without-libmetalink")
+    args << (build.with?("gssapi") ? "--with-gssapi" : "--without-gssapi")
+    args << (build.with?("rtmpdump") ? "--with-librtmp" : "--without-librtmp")
+
+    if build.with? "c-ares"
+      args << "--enable-ares=#{Formula["c-ares"].opt_prefix}"
+    else
+      args << "--disable-ares"
+    end
 
     system "./configure", *args
-    system "make install"
+    system "make", "install"
+  end
+
+  test do
+    # Fetch the curl tarball and see that the checksum matches.
+    # This requires a network connection, but so does Homebrew in general.
+    filename = (testpath/"test.tar.gz")
+    system "#{bin}/curl", stable.url, "-o", filename
+    filename.verify_checksum stable.checksum
   end
 end

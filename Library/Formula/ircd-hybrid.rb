@@ -1,15 +1,20 @@
-require 'formula'
+require "formula"
 
 class IrcdHybrid < Formula
-  homepage 'http://www.ircd-hybrid.org/'
-  url 'http://sourceforge.net/projects/ircd-hybrid/files/ircd-hybrid/ircd-hybrid-8.0.6/ircd-hybrid-8.0.6.tgz'
-  sha1 'd43cf4464c69f57f1d8273f70cf885c220385a4b'
+  homepage "http://www.ircd-hybrid.org/"
+  url "https://downloads.sourceforge.net/project/ircd-hybrid/ircd-hybrid/ircd-hybrid-8.2.1/ircd-hybrid-8.2.1.tgz"
+  sha1 "43e96d1d3e57f8d867348921a5b225011ab988b2"
+
+  bottle do
+    sha1 "1ac5860e94fac63377994eebada838b4975e5cb2" => :yosemite
+    sha1 "d3150f7395160fc08cd665144288587360d5ee34" => :mavericks
+    sha1 "cbcbb7266548178d080fb3683e7ba8cd203265fa" => :mountain_lion
+  end
 
   # ircd-hybrid needs the .la files
   skip_clean :la
 
-  # system openssl fails with undefined symbols: "_SSL_CTX_clear_options"
-  depends_on 'openssl' if MacOS.version < :lion
+  depends_on "openssl"
 
   def install
     ENV.j1 # build system trips over itself
@@ -17,13 +22,14 @@ class IrcdHybrid < Formula
     system "./configure", "--disable-dependency-tracking",
                           "--prefix=#{prefix}",
                           "--localstatedir=#{var}",
-                          # there's no config setting for this so set it to something generous
-                          "--with-nicklen=30"
-    system "make install"
+                          "--sysconfdir=#{etc}",
+                          "--enable-openssl=#{Formula["openssl"].opt_prefix}"
+    system "make", "install"
+    etc.install "doc/reference.conf" => "ircd.conf"
   end
 
-  def test
-    system "#{sbin}/ircd", "-version"
+  test do
+    system "#{bin}/ircd", "-version"
   end
 
   def caveats; <<-EOS.undent
@@ -45,12 +51,10 @@ class IrcdHybrid < Formula
       <string>#{plist_name}</string>
       <key>ProgramArguments</key>
       <array>
-        <string>#{opt_prefix}/sbin/ircd</string>
+        <string>#{opt_sbin}/ircd</string>
       </array>
       <key>RunAtLoad</key>
       <true/>
-      <key>UserName</key>
-      <string>#{`whoami`.chomp}</string>
       <key>WorkingDirectory</key>
       <string>#{HOMEBREW_PREFIX}</string>
       <key>StandardErrorPath</key>

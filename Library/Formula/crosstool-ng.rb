@@ -2,66 +2,77 @@ require 'formula'
 
 class CrosstoolNg < Formula
   homepage 'http://crosstool-ng.org'
-  url 'http://crosstool-ng.org/download/crosstool-ng/crosstool-ng-1.18.0.tar.bz2'
-  sha1 'ea9aa0521683486efb02596d9dfe00f66e18fdc3'
+  url 'http://crosstool-ng.org/download/crosstool-ng/crosstool-ng-1.20.0.tar.bz2'
+  sha1 'b11f7ee706753b8cf822f98b549f8ab9dd8da9c7'
 
-  depends_on :automake
+  bottle do
+    cellar :any
+    sha1 "e0b4f5c33aea34c2c94cfbbb71b9e238ab5262c9" => :yosemite
+    sha1 "dc3c1243bb2df823e0db44562e6dc2b869f0a3b1" => :mavericks
+    sha1 "fc2cfb94d4edb31624c5703c07e536e7becb2fa0" => :mountain_lion
+  end
+
+  depends_on "autoconf" => :build
+  depends_on "automake" => :build
+  depends_on "libtool" => :build
   depends_on 'coreutils' => :build
   depends_on 'wget'
   depends_on 'gnu-sed'
   depends_on 'gawk'
   depends_on 'binutils'
+  depends_on 'libelf'
+  depends_on 'homebrew/dupes/grep' => :optional
+  depends_on 'homebrew/dupes/make' => :optional
 
+  # Avoid superenv to prevent https://github.com/mxcl/homebrew/pull/10552#issuecomment-9736248
   env :std
 
-  def patches
-    # Fixes clang offsetof compatability. Took better patch from #14547
-    DATA
+  # Patch to fix clang offsetof. Can be removed when adopted upstream.
+  # http://patchwork.ozlabs.org/patch/400328/
+  patch do
+    url "http://patchwork.ozlabs.org/patch/400328/raw/"
+    sha1 "0baca77c863e6876f6fb1838db9e5cb60c6fe89c"
+  end
+
+  # Patch to make regex BSD grep compatible. Can be removed when adopted upstream.
+  # http://patchwork.ozlabs.org/patch/400351/
+  patch do
+    url "http://patchwork.ozlabs.org/patch/400351/raw/"
+    sha1 "8f8e29aa149e65c2588a2d9ec3849d0ba727e0ad"
   end
 
   def install
-    system "./configure", "--prefix=#{prefix}",
-                          "--exec-prefix=#{prefix}",
-                          "--with-objcopy=gobjcopy",
-                          "--with-objdump=gobjdump",
-                          "--with-readelf=greadelf",
-                          "--with-libtool=glibtool",
-                          "--with-libtoolize=glibtoolize",
-                          "--with-install=ginstall",
-                          "CFLAGS=-std=gnu89"
+    args = ["--prefix=#{prefix}",
+            "--exec-prefix=#{prefix}",
+            "--with-objcopy=gobjcopy",
+            "--with-objdump=gobjdump",
+            "--with-readelf=greadelf",
+            "--with-libtool=glibtool",
+            "--with-libtoolize=glibtoolize",
+            "--with-install=ginstall",
+            "--with-sed=gsed",
+            "--with-awk=gawk"]
+
+    args << "--with-grep=ggrep" if build.with? "grep"
+
+    args << "--with-make=gmake" if build.with? "make"
+
+    args << "CFLAGS=-std=gnu89"
+
+    system "./configure", *args
+
     # Must be done in two steps
     system "make"
     system "make install"
   end
 
-  def test
-    system "#{bin}/ct-ng version"
+  def caveats; <<-EOS.undent
+    You will need to install modern gcc compiler in order to use this tool.
+    EOS
   end
 
-  def caveats; <<-EOS.undent
-    If building a cross compiler your may expirience the following error:
-      error: elf.h: No such file or directory
-
-    To fix it, perform the following:
-      curl https://raw.github.com/gist/3769372/98e0a084470d2d6be7b4b61551ef00d44c682b4a/elf.h > elf.h
-      cp -p elf.h /usr/local/include/
-    EOS
+  test do
+    system "#{bin}/ct-ng", "version"
   end
 end
 
-__END__
-diff --git a/kconfig/zconf.gperf b/kconfig/zconf.gperf
-index c9e690e..21e79e4 100644
---- a/kconfig/zconf.gperf
-+++ b/kconfig/zconf.gperf
-@@ -7,6 +7,10 @@
- %pic
- %struct-type
-
-+%{
-+#include <stddef.h>
-+%}
-+
- struct kconf_id;
-
- static struct kconf_id *kconf_id_lookup(register const char *str, register unsigned int len);

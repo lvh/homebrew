@@ -2,34 +2,29 @@ require 'formula'
 
 class Rust < Formula
   homepage 'http://www.rust-lang.org/'
-  url 'http://dl.rust-lang.org/dist/rust-0.5.tar.gz'
-  sha256 'd326d22707f0562d669c11efbc33ae812ddbf76ab78f07087fc5beb095a8928a'
+  url 'https://static.rust-lang.org/dist/rustc-1.0.0-alpha-src.tar.gz'
+  version "1.0.0-alpha"
+  sha256 '3a2285726e839fc57ad49ed8907a50bab2d29d8f898e2d5a02f620a0477fc25c'
 
-  fails_with :clang do
-    build 318
-    cause "cannot initialize a parameter of type 'volatile long long *' with an rvalue of type 'int *'"
-  end
+  head 'https://github.com/rust-lang/rust.git'
 
-  # Fix repl showstopper bug; can be removed for 0.6.
-  # and add clang 4.2 support for new XCode
-  def patches
-    [ "https://github.com/mozilla/rust/commit/9bf87bbf66227c132283ae59720f919601de9a56.patch",
-    "https://github.com/mozilla/rust/commit/37f97ff5041839aa42892115de954489f9eab5bc.patch",
-    "https://github.com/labria/rust/commit/b4133cc1236197d0a3ce6f8664827f89277315fe.patch",
-    "https://github.com/mozilla/rust/commit/3ee1d3ebb81de199fc630a86933ac18c0a869482.patch" ]
+  bottle do
+    sha1 "5277e1c21e09bebde2c721be9b21680ba85d78bf" => :yosemite
+    sha1 "b46ed4b2cc08432f45cb9f28b2e5ee66280787ff" => :mavericks
+    sha1 "7d8e4945fffaf1844f166c7450d068e0860962b2" => :mountain_lion
   end
 
   def install
     args = ["--prefix=#{prefix}"]
+    args << "--disable-rpath" if build.head?
     args << "--enable-clang" if ENV.compiler == :clang
     system "./configure", *args
     system "make"
     system "make install"
   end
 
-  def test
+  test do
     system "#{bin}/rustc"
-    system "#{bin}/rustdoc"
-    system "#{bin}/cargo"
+    system "#{bin}/rustdoc", "-h"
   end
 end

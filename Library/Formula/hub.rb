@@ -1,20 +1,42 @@
-require 'formula'
-
 class Hub < Formula
-  homepage 'http://defunkt.io/hub/'
-  url 'https://github.com/defunkt/hub/tarball/v1.10.4'
-  sha1 'b43f69f20563cb779d77a6beaf773bad8c49ad4c'
-  head 'https://github.com/defunkt/hub.git'
+  homepage "http://hub.github.com/"
+  url "https://github.com/github/hub/archive/v1.12.4.tar.gz"
+  sha1 "25135167108cd777ba6ec2dd5a9a25e248d98d4b"
+
+  head do
+    url "https://github.com/github/hub.git"
+    depends_on "go" => :build
+  end
+
+  devel do
+    url "https://github.com/github/hub/archive/v2.2.0-rc1.tar.gz"
+    sha1 "029d154ce0f9c4999e4dd6ef23eab5e411370c4f"
+    version "2.2.0-rc1"
+
+    depends_on "go" => :build
+  end
+
+  option "without-completions", "Disable bash/zsh completions"
 
   def install
-    rake "install", "prefix=#{prefix}"
-    bash_completion.install 'etc/hub.bash_completion.sh'
-    zsh_completion.install 'etc/hub.zsh_completion' => '_hub'
+    if build.head? || build.devel?
+      ENV["GIT_DIR"] = cached_download/".git"
+      system "script/build"
+      bin.install "hub"
+      man1.install Dir["man/*"]
+    else
+      rake "install", "prefix=#{prefix}"
+    end
+
+    if build.with? "completions"
+      bash_completion.install "etc/hub.bash_completion.sh"
+      zsh_completion.install "etc/hub.zsh_completion" => "_hub"
+    end
   end
 
   test do
     HOMEBREW_REPOSITORY.cd do
-      `#{bin}/hub ls-files -- bin`.chomp == 'bin/brew'
+      assert_equal "bin/brew", shell_output("#{bin}/hub ls-files -- bin").strip
     end
   end
 end

@@ -1,9 +1,9 @@
-require 'formula'
+require "formula"
 
 class Ccextractor < Formula
-  homepage 'http://ccextractor.sourceforge.net/'
-  url 'http://sourceforge.net/projects/ccextractor/files/ccextractor/0.64/ccextractor.src.0.64.zip/'
-  sha1 '72216b2342f27bb931cdb7239a05f7894fca7150'
+  homepage "http://ccextractor.sourceforge.net/"
+  url "https://downloads.sourceforge.net/project/ccextractor/ccextractor/0.74/ccextractor.src.0.74.zip"
+  sha1 "3118533154e23078675523d3edbca8a657eda54c"
 
   def install
     cd "mac"

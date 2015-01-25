@@ -1,93 +1,113 @@
-require 'formula'
+require "formula"
 
 class Imagemagick < Formula
-  homepage 'http://www.imagemagick.org'
+  homepage "http://www.imagemagick.org"
+  url "http://www.imagemagick.org/download/releases/ImageMagick-6.9.0-3.tar.xz"
+  sha256 "f00452ba2c05c2df9624c62d7adb49ecf17140edd6e5f355cceca051dab1fb38"
 
-  # upstream's stable tarballs tend to disappear, so we provide our own mirror
-  # Tarball from: http://www.imagemagick.org/download/ImageMagick.tar.gz
-  # SHA-256 from: http://www.imagemagick.org/download/digest.rdf
-  url 'http://downloads.sf.net/project/machomebrew/mirror/ImageMagick-6.8.0-10.tar.gz'
-  sha256 'b3dfcb44300f73e73ffa8deef8bba4cf43f03d7150bf1fd0febedceac1a45c7e'
-
-  head 'https://www.imagemagick.org/subversion/ImageMagick/trunk',
-    :using => UnsafeSubversionDownloadStrategy
-
-  option 'with-quantum-depth-8', 'Compile with a quantum depth of 8 bit'
-  option 'with-quantum-depth-16', 'Compile with a quantum depth of 16 bit'
-  option 'with-quantum-depth-32', 'Compile with a quantum depth of 32 bit'
-
-  depends_on :libltdl
-
-  depends_on 'pkg-config' => :build
-
-  depends_on 'jpeg' => :recommended
-  depends_on :libpng => :recommended
-  depends_on :freetype => :recommended
-
-  depends_on :x11 => :optional
-  depends_on :fontconfig => :optional
-  depends_on 'libtiff' => :optional
-  depends_on 'little-cms' => :optional
-  depends_on 'jasper' => :optional
-  depends_on 'libwmf' => :optional
-  depends_on 'librsvg' => :optional
-  depends_on 'liblqr' => :optional
-  depends_on 'openexr' => :optional
-  depends_on 'ghostscript' => :optional
-
-  opoo '--with-ghostscript is not recommended' if build.with? 'ghostscript'
-  if build.with? 'openmp' and (MacOS.version == 10.5 or ENV.compiler == :clang)
-    opoo '--with-openmp is not supported on Leopard or with Clang'
-  end
+  head "http://www.imagemagick.org/subversion/ImageMagick/trunk"
 
   bottle do
-    sha1 '543ce5bf72c3897f25b54523a5c3de355a84ff44' => :mountainlion
-    sha1 '1966734b73b2cf77f47e639fe7ae48603dec15bd' => :lion
-    sha1 '1068830a71fb1f990d8fcb06495693eaeb4edafc' => :snowleopard
+    sha1 "9e788e5e325c50da3accb53228fdcda87bd43929" => :yosemite
+    sha1 "f260b2e5c574fe7159a093769a9cabad7970ef9b" => :mavericks
+    sha1 "e277ef9ac3df4771851a8e061025ba8005fd292c" => :mountain_lion
   end
+
+  option "with-quantum-depth-8", "Compile with a quantum depth of 8 bit"
+  option "with-quantum-depth-16", "Compile with a quantum depth of 16 bit"
+  option "with-quantum-depth-32", "Compile with a quantum depth of 32 bit"
+  option "with-perl", "enable build/install of PerlMagick"
+  option "without-magick-plus-plus", "disable build/install of Magick++"
+  option "with-jp2", "Compile with Jpeg2000 support"
+  option "enable-hdri", "Compile with HDRI support"
+  option "with-fftw", "Compile with FFTW support"
+
+  depends_on "libtool" => :run
+
+  depends_on "pkg-config" => :build
+
+  depends_on "jpeg" => :recommended
+  depends_on "libpng" => :recommended
+  depends_on "freetype" => :recommended
+
+  depends_on :x11 => :optional
+  depends_on "fontconfig" => :optional
+  depends_on "libtiff" => :optional
+  depends_on "little-cms" => :optional
+  depends_on "little-cms2" => :optional
+  depends_on "libwmf" => :optional
+  depends_on "librsvg" => :optional
+  depends_on "liblqr" => :optional
+  depends_on "openexr" => :optional
+  depends_on "ghostscript" => :optional
+  depends_on "webp" => :optional
+  depends_on "homebrew/versions/openjpeg21" if build.with? "jp2"
+  depends_on "fftw" => :optional
+
+  depends_on "xz"
 
   skip_clean :la
 
   def install
     args = [ "--disable-osx-universal-binary",
-             "--without-perl", # I couldn't make this compile
              "--prefix=#{prefix}",
              "--disable-dependency-tracking",
              "--enable-shared",
              "--disable-static",
              "--without-pango",
-             "--with-included-ltdl",
-             "--with-modules"]
+             "--with-modules",
+             "--disable-openmp"]
 
-    args << "--disable-openmp" unless build.include? 'enable-openmp'
-    args << "--disable-opencl" if build.include? 'disable-opencl'
-    args << "--without-gslib" unless build.with? 'ghostscript'
-    args << "--with-gs-font-dir=#{HOMEBREW_PREFIX}/share/ghostscript/fonts" unless build.with? 'ghostscript'
-    args << "--without-magick-plus-plus" if build.without? 'magick-plus-plus'
-    args << "--enable-hdri=yes" if build.include? 'enable-hdri'
+    args << "--disable-opencl" if build.include? "disable-opencl"
+    args << "--without-gslib" if build.without? "ghostscript"
+    args << "--without-perl" if build.without? "perl"
+    args << "--with-gs-font-dir=#{HOMEBREW_PREFIX}/share/ghostscript/fonts" if build.without? "ghostscript"
+    args << "--without-magick-plus-plus" if build.without? "magick-plus-plus"
+    args << "--enable-hdri=yes" if build.include? "enable-hdri"
+    args << "--enable-fftw=yes" if build.with? "fftw"
 
-    if build.with? 'quantum-depth-32'
+    if build.with? "quantum-depth-32"
       quantum_depth = 32
-    elsif build.with? 'quantum-depth-16'
+    elsif build.with? "quantum-depth-16"
       quantum_depth = 16
-    elsif build.with? 'quantum-depth-8'
+    elsif build.with? "quantum-depth-8"
       quantum_depth = 8
     end
 
+    if build.with? "jp2"
+      args << "--with-openjp2"
+    else
+      args << "--without-openjp2"
+    end
+
     args << "--with-quantum-depth=#{quantum_depth}" if quantum_depth
-    args << "--with-rsvg" if build.with? 'rsvg'
-    args << "--without-x" unless build.with? 'x'
-    args << "--with-fontconfig=yes" if build.with? 'fontconfig' or MacOS::X11.installed?
-    args << "--with-freetype=yes" if build.with? 'freetype' or MacOS::X11.installed?
+    args << "--with-rsvg" if build.with? "librsvg"
+    args << "--without-x" if build.without? "x11"
+    args << "--with-fontconfig=yes" if build.with? "fontconfig"
+    args << "--with-freetype=yes" if build.with? "freetype"
+    args << "--with-webp=yes" if build.with? "webp"
 
     # versioned stuff in main tree is pointless for us
-    inreplace 'configure', '${PACKAGE_NAME}-${PACKAGE_VERSION}', '${PACKAGE_NAME}'
+    inreplace "configure", "${PACKAGE_NAME}-${PACKAGE_VERSION}", "${PACKAGE_NAME}"
     system "./configure", *args
     system "make install"
   end
 
+  def caveats
+    s = <<-EOS.undent
+      For full Perl support you must install the Image::Magick module from the CPAN.
+        https://metacpan.org/module/Image::Magick
+
+      The version of the Perl module and ImageMagick itself need to be kept in sync.
+      If you upgrade one, you must upgrade the other.
+
+      For this version of ImageMagick you should install
+      version #{version} of the Image::Magick Perl module.
+    EOS
+    s if build.with? "perl"
+  end
+
   test do
-    system "#{bin}/identify", \
-      "/System/Library/Frameworks/SecurityInterface.framework/Versions/A/Resources/Key_Large.png"
+    system "#{bin}/identify", test_fixtures("test.png")
   end
 end

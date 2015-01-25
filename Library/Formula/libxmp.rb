@@ -1,18 +1,19 @@
-require 'formula'
-
 class Libxmp < Formula
-  homepage 'http://xmp.sourceforge.net'
-  url 'http://downloads.sourceforge.net/project/xmp/libxmp/4.0.1/libxmp-4.0.1.tar.gz'
-  sha1 '2deeb3df362f01dcd39a874c83010c02bf4e8177'
-  head 'git://xmp.git.sourceforge.net/gitroot/xmp/xmp'
+  homepage "http://xmp.sourceforge.net"
+  url "https://downloads.sourceforge.net/project/xmp/libxmp/4.3.3/libxmp-4.3.3.tar.gz"
+  sha1 "96587f6412dedbba80558ef6c25a5bf966fa5887"
 
-  depends_on :autoconf if build.head?
+  bottle do
+    cellar :any
+    sha1 "6c1d8e11eeed747b2c3eef68580242aa54fd534d" => :yosemite
+    sha1 "95b085e5280cd384298f4076670b2c748dd57f14" => :mavericks
+    sha1 "baa6fa4eb7e74e3212ede70e140c3ac535bd68c9" => :mountain_lion
+  end
 
-  # Fixes channel volume setting
-  # Merged upstream, will be in 4.0.2
-  def patches
-    "http://sourceforge.net/mailarchive/attachment.php?list_name=xmp-devel&message_id=CAGfWt5eaw-5ofKGpM6SO%3D%2BwB0cyVZNi4Y1NFBRnOAXyFqu56yg%40mail.gmail.com&counter=1"
-  end unless build.head?
+  head do
+    url "git://git.code.sf.net/p/xmp/libxmp"
+    depends_on "autoconf" => :build
+  end
 
   def install
     system "autoconf" if build.head?

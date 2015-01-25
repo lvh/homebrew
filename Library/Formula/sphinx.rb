@@ -1,19 +1,30 @@
 require 'formula'
 
-class Libstemmer < Formula
-  # upstream is constantly changing the tarball,
-  # so doing checksum verification here would require
-  # constant, rapid updates to this formula.
-  head 'http://snowball.tartarus.org/dist/libstemmer_c.tgz'
-  homepage 'http://snowball.tartarus.org/'
-end
-
 class Sphinx < Formula
   homepage 'http://www.sphinxsearch.com'
-  url 'http://sphinxsearch.com/files/sphinx-2.0.6-release.tar.gz'
-  sha1 'fe1b990052f961a100adba197abe806a3c1b70dc'
+  url 'http://sphinxsearch.com/files/sphinx-2.2.6-release.tar.gz'
+  sha1 '9c458ed999a3e771d417a704e12c469e06423e4a'
 
   head 'http://sphinxsearch.googlecode.com/svn/trunk/'
+
+  bottle do
+    sha1 "96a941abefc28d95a3db766311ee222435fbdc4b" => :yosemite
+    sha1 "087eda561408cc38e1bb1b86b32c441d169245f0" => :mavericks
+    sha1 "780a6615a3ca764461810c88720dd71bafb3b37b" => :mountain_lion
+  end
+
+  option 'mysql', 'Force compiling against MySQL'
+  option 'pgsql', 'Force compiling against PostgreSQL'
+  option 'id64',  'Force compiling with 64-bit ID support'
+
+  depends_on "re2" => :optional
+  depends_on :mysql if build.include? 'mysql'
+  depends_on :postgresql if build.include? 'pgsql'
+
+  resource 'stemmer' do
+    url "https://github.com/snowballstem/snowball.git",
+      :revision => "9b58e92c965cd7e3208247ace3cc00d173397f3c"
+  end
 
   fails_with :llvm do
     build 2334
@@ -22,40 +33,39 @@ class Sphinx < Formula
 
   fails_with :clang do
     build 421
-    cause <<-EOS.undent
-      sphinxexpr.cpp:1802:11: error: use of undeclared identifier 'ExprEval'
-    EOS
+    cause "sphinxexpr.cpp:1802:11: error: use of undeclared identifier 'ExprEval'"
   end
 
-  option 'mysql', 'Force compiling against MySQL'
-  option 'pgsql', 'Force compiling against PostgreSQL'
-  option 'id64',  'Force compiling with 64-bit ID support'
-
   def install
-    Libstemmer.new.brew { (buildpath/'libstemmer_c').install Dir['*'] }
+    resource('stemmer').stage do
+      system "make", "dist_libstemmer_c"
+      system "tar", "xzf", "dist/libstemmer_c.tgz", "-C", buildpath
+    end
 
     args = %W[--prefix=#{prefix}
               --disable-dependency-tracking
-              --localstatedir=#{var}]
+              --localstatedir=#{var}
+              --with-libstemmer]
 
-    # always build with libstemmer support
-    args << "--with-libstemmer"
+    args << "--enable-id64" if build.include? 'id64'
+    args << "--with-re2" if build.with? 're2'
 
-    # configure script won't auto-select PostgreSQL
-    if build.include?('mysql') || which('mysql_config')
-      args << "--with-mysql"
-    else
-      args << "--without-mysql"
+    %w{mysql pgsql}.each do |db|
+      if build.include? db
+        args << "--with-#{db}"
+      else
+        args << "--without-#{db}"
+      end
     end
-
-    args << "--with-pgsql" if build.include?('pgsql') || which('pg_config')
-    args << "--enable-id64" if build.include?('id64')
 
     system "./configure", *args
     system "make install"
   end
 
   def caveats; <<-EOS.undent
+    This is not sphinx - the Python Documentation Generator.
+    To install sphinx-python: use pip or easy_install,
+
     Sphinx has been compiled with libstemmer support.
 
     Sphinx depends on either MySQL or PostreSQL as a datasource.

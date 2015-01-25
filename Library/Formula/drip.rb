@@ -2,8 +2,8 @@ require 'formula'
 
 class Drip < Formula
   homepage 'https://github.com/flatland/drip'
-  url 'https://github.com/flatland/drip/tarball/0.2.3'
-  sha1 '34ac75d9468d97f7b1fea806be9e7e821a3579d3'
+  url 'https://github.com/flatland/drip/archive/0.2.4.tar.gz'
+  sha1 '6c3c4ea6395e542815c3d5a44612748cc4f1f85e'
 
   def install
     system 'make'
