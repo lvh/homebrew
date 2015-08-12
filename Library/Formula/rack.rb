@@ -9,7 +9,10 @@ class Rack < Formula
 
   def install
     ENV["GOPATH"] = buildpath
-    system "go", "get", "-d"
+    pkgpath = "#{buildpath}/src/github.com/rackspace"
+    rackpath = "#{pkgpath}/rack"
+    system "mkdir", "-p", pkgpath
+    system "mv", "#{buildpath}/rack-#{version}", rackpath
     system "go", "build", "-o", "rack"
     bin.install "rack"
   end
