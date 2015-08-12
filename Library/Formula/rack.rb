@@ -1,5 +1,5 @@
 class Rack < Formula
-  desc "A CLI for Rackspace"
+  desc "CLI for Rackspace"
   homepage "https://github.com/rackspace/rack"
   version "1.0.0-beta.1"
   url "https://github.com/rackspace/rack/archive/#{version}.tar.gz"
