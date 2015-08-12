@@ -7,6 +7,12 @@ class Rack < Formula
 
   depends_on "go" => :build
 
+  # Fix import paths in the vendored code
+  patch do
+    url "https://github.com/rackspace/rack/commit/833593b72c6e8ad0577844d480d75aa924744e25.patch"
+    sha256 "3c3a79c17b563fbd3082e8d8876b920ab0163deda691778fe5466a37f2196048"
+  end
+
   def install
     ENV["GOPATH"] = buildpath
 
