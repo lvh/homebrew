@@ -1,9 +1,9 @@
 class Rack < Formula
   desc "CLI for Rackspace"
   homepage "https://github.com/rackspace/rack"
-  version "1.0.0-beta.1"
+  version "1.0.0"
   url "https://github.com/rackspace/rack/archive/#{version}.tar.gz"
-  sha256 "2ab9513fee4a23667e89c05548be26b4f15a387a8be1e1896936f6e253e05c51"
+  sha256 "a348e2c5454bf7df5414226dd7e2cf537a2a8836297408a5db9a40c9b59037aa"
 
   depends_on "go" => :build
 
