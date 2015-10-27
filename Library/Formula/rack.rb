@@ -1,7 +1,8 @@
 class Rack < Formula
   desc "CLI for Rackspace"
   homepage "https://github.com/rackspace/rack"
-  url "https://github.com/rackspace/rack.git", :tag => "1.0.1",
+  url "https://github.com/rackspace/rack.git",
+      :tag => "1.0.1",
       :revision => "71a8d7c80b3652b4dd39e683bc423b8a542b0167"
   head "https://github.com/rackspace/rack.git"
 
