@@ -1,15 +1,14 @@
 class Node < Formula
   desc "Platform built on the V8 JavaScript runtime to build network applications"
   homepage "https://nodejs.org/"
-  url "https://nodejs.org/dist/v4.1.0/node-v4.1.0.tar.gz"
-  sha256 "453005f64ee529f7dcf1237eb27ee2fa2415c49f5c9e7463e8b71fba61c5b408"
+  url "https://nodejs.org/dist/v4.2.1/node-v4.2.1.tar.gz"
+  sha256 "8861b9f4c3b4db380fcda19a710c0430c3d62d03ee176c64db63eef95a672663"
   head "https://github.com/nodejs/node.git"
 
   bottle do
-    revision 1
-    sha256 "e0adcefe208f3e79adac882d1b216545664dab70dda9d5ca189fb746b60bae13" => :el_capitan
-    sha256 "4c286bc21214c9555f3f9873db6ede862c8491420a767fcc43365e1a2622a2c9" => :yosemite
-    sha256 "72fb26e3873b3c58aca90353e1729c68ed42734782d132a56953c51e2a4c6d4c" => :mavericks
+    sha256 "8592bb96777b29c45293da698de092da39547130e9eced251060cd032ffd0326" => :el_capitan
+    sha256 "474d4f7c08fd5c3ede9155e0f44704abbe84db0ccaba4346d923079a74a59105" => :yosemite
+    sha256 "006d46e8db90432c8dc1140b32f5ac1ea041a0ce3a84c70db3276fecca1243a5" => :mavericks
   end
 
   option "with-debug", "Build with debugger hooks"
@@ -29,15 +28,14 @@ class Node < Formula
   end
 
   resource "npm" do
-    url "https://registry.npmjs.org/npm/-/npm-2.14.4.tgz"
-    sha256 "c8b602de5d51f956aa8f9c34d89be38b2df3b7c25ff6588030eb8224b070db27"
+    url "https://registry.npmjs.org/npm/-/npm-2.14.7.tgz"
+    sha256 "54f3a5195a1e6b52fc954749e81f8abf1f7c8ca912b90ecf2b33581800d0f6a5"
   end
 
   resource "icu4c" do
-    url "https://ssl.icu-project.org/files/icu4c/55.1/icu4c-55_1-src.tgz"
-    mirror "https://fossies.org/linux/misc/icu4c-55_1-src.tgz"
-    version "55.1"
-    sha256 "e16b22cbefdd354bec114541f7849a12f8fc2015320ca5282ee4fd787571457b"
+    url "https://ssl.icu-project.org/files/icu4c/56.1/icu4c-56_1-src.tgz"
+    version "56.1"
+    sha256 "3a64e9105c734dcf631c0b3ed60404531bce6c0f5a64bfe1a6402a4cc2314816"
   end
 
   def install
@@ -128,7 +126,7 @@ class Node < Formula
     assert_equal "hello", output
     assert_equal 0, $?.exitstatus
     output = `#{bin}/node -e "console.log(new Date('2015-09-15').toLocaleDateString('en'))"`.strip
-    assert_match /9\/1[45]\/2015/u, output # depends on system timezone
+    assert_match %r{^9/1[45]/2015$}, output # depends on system timezone
     assert_equal 0, $?.exitstatus
 
     if build.with? "npm"

@@ -1,8 +1,10 @@
 class RubyBuild < Formula
   desc "Install various Ruby versions and implementations"
   homepage "https://github.com/sstephenson/ruby-build"
-  url "https://github.com/sstephenson/ruby-build/archive/v20150818.tar.gz"
-  sha256 "692df6287b172d12adbc13b58074075f8c6df7807a4b30e33baf74e3c528f9ae"
+  url "https://github.com/sstephenson/ruby-build/archive/v20151024.tar.gz"
+  sha256 "8e5be61e967d9a6af84dd84f57c1e28be4cc6c1d4916e235a3393a42673618dc"
+
+  bottle :unneeded
 
   head "https://github.com/sstephenson/ruby-build.git"
 
@@ -16,6 +18,6 @@ class RubyBuild < Formula
   end
 
   test do
-    system "#{bin}/ruby-build", "--version"
+    system "#{bin}/ruby-build", "--definitions"
   end
 end
