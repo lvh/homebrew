@@ -13,7 +13,7 @@ class Rack < Formula
     ENV["TRAVIS_TAG"] = @tag
 
     rackpath = buildpath/"src/github.com/rackspace/rack"
-    rackpath.install Dir["{*,.git}"]
+    rackpath.install Dir["{*,.*}"]
 
     cd rackpath do
       system "script/build", "rack"
