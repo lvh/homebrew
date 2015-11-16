@@ -10,10 +10,10 @@ class Rack < Formula
 
   def install
     ENV["GOPATH"] = buildpath
-    ENV["TRAVIS_TAG"] = @tag
+    ENV["TRAVIS_TAG"] = version
 
     rackpath = buildpath/"src/github.com/rackspace/rack"
-    rackpath.install (Dir["{*,.*}"] - [".", ".."])
+    rackpath.install (Dir["{*,.??*}"] - [".", ".."])
 
     cd rackpath do
       system "script/build", "rack"
